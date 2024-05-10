@@ -1,5 +1,4 @@
 
-//执行命令:./gradlew i createSDP 即可生成
 task('SDPFactory', type: SDPFactory){
     println "SDPFactory"
 }
