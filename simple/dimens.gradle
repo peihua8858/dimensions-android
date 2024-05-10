@@ -1,0 +1,138 @@
+
+//执行命令:./gradlew i createSDP 即可生成
+task('SDPFactory', type: SDPFactory){
+    println "SDPFactory"
+}
+task("creatteDimens", dependsOn: [
+        'SDPFactory',// 0
+], group: 'dimens-task') {
+    println "creatteDimens()"
+}
+
+class SDPFactory extends DefaultTask {
+
+    private double baseW = 1080
+    private int maxSp = 120
+    private def supportStr = [360, 540, 720, 1080] as int[]
+    //正数
+    private String WTemplate = "<dimen name=\"dp_{0}\">{1}dp</dimen>"
+    //负数
+//    String _WTemplate = "<dimen name=\"mdp_{0}\">{1}dp</dimen>"
+    private String TextTemplate = "<dimen name=\"sp_{0}\">{1}sp</dimen>"
+
+    @TaskAction
+    def generateXmlFile() {
+        for (int val : supportStr) {
+            generatePositiveFile(val)
+        }
+
+//        for (int val : supportStr) {
+//            generateNegativeFile(val)
+//        }
+//        for (int val : supportStr) {
+//            generateSpFile(val)
+//        }
+    }
+
+    //生成dp(正数)
+    def generatePositiveFile(float w) {
+        //创建目录
+        String resFolder = project.getProjectDir().getPath() + "/src/main/res/"
+        String folder = resFolder + "values-sw" + (int) w + "dp"
+        File fileDir = new File(folder)
+        if (!fileDir.exists()) {
+            fileDir.mkdir()
+        }
+
+        //创建文件
+        String fileName = folder + "/dimens.xml"
+        File file = new File(fileName)
+        file.createNewFile()
+
+        PrintWriter printWriter = new PrintWriter(fileName)
+        printWriter.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+        printWriter.println("<resources>")
+
+        float cellw = w * 2f / baseW// 2表示屏幕密度xhdpi 120*2/1440
+        int i = 0
+        for (; i < baseW; i++) {
+            String dpContent = WTemplate.replace("{0}", i + "").replace("{1}", change(cellw * i) + "")
+            printWriter.println(dpContent)
+            if (i <= maxSp) {
+                String spContent = TextTemplate.replace("{0}", i + "").replace("{1}", change(cellw * i) + "")
+                printWriter.println(spContent)
+            }
+        }
+
+        printWriter.println(WTemplate.replace("{0}", baseW + "").replace("{1}", w + ""))
+        printWriter.println("</resources>")
+        printWriter.close()
+    }
+
+    //生成sp
+//    def generateSpFile(float w) {
+//
+//        //创建目录
+//        String resFolder = project.getProjectDir().getPath() + "/src/main/res/"
+//        String folder = resFolder + "values-sw" + (int) w + "dp"
+//        File fileDir = new File(folder)
+//        if (!fileDir.exists()) {
+//            fileDir.mkdir()
+//        }
+//
+//        //创建文件
+//        String fileName = folder + "/sp_dimens.xml"
+//        File file = new File(fileName)
+//        file.createNewFile()
+//
+//        PrintWriter printWriter = new PrintWriter(fileName)
+//        printWriter.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+//        printWriter.println("<resources>")
+//
+//        float cellw = w * 2 / baseW// 2表示屏幕密度xhdpi 120*2/1440
+//        int i = 0
+//        for (; i < maxSp; i++) {
+//            String content = TextTemplate.replace("{0}", i + "").replace("{1}", change(cellw * i) + "")
+//            printWriter.println(content)
+//        }
+//
+//        printWriter.println("</resources>")
+//        printWriter.close()
+//    }
+    //生成dp(负数)
+//    def generateNegativeFile(float w) {
+//        //创建目录
+//        String resFolder = project.getProjectDir().getPath() + "/src/main/res/"
+//        String folder = resFolder + "values-sw" + (int) w + "dp"
+//        File fileDir = new File(folder)
+//        if (!fileDir.exists()) {
+//            fileDir.mkdir()
+//        }
+//
+//        //创建文件
+//        String fileName = folder + "/negative_sdps.xml"
+//        File file = new File(fileName)
+//        file.createNewFile()
+//
+//        PrintWriter printWriter = new PrintWriter(fileName)
+//        printWriter.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+//        printWriter.println("<resources>")
+//
+//        float cellw = w * 2 / baseW// 2表示屏幕密度xhdpi 120*2/1440
+//        int i = -60
+//        for (; i < baseW; i++) {
+//            if (i < 0) {
+//                String content = _WTemplate.replace("{0}", Math.abs(i) + "").replace("{1}", change(cellw * i) + "")
+//                printWriter.println(content)
+//            }
+//        }
+//
+//        printWriter.println("</resources>")
+//        printWriter.close()
+//    }
+
+    static def change(a) {
+        float temp = (int) (a * 100)
+        return temp / 100f
+    }
+}
