@@ -1,3 +1,6 @@
+import java.text.DecimalFormat
+import groovy.xml.*
+
 task('SDPFactory', type: SDPFactory) {
     println "SDPFactory"
 }
@@ -6,18 +9,22 @@ task("creatteDimens", dependsOn: [
 ], group: 'dimens-task') {
     println "creatteDimens()"
 }
-
+/**
+ * 读取res/values/dimens.xml文件，根据该文件内容生成对应的dimens-swXXXdp.xml文件
+ */
 class SDPFactory extends DefaultTask {
     //设计图宽度尺寸px
     private double designW = 1080
-    //最大字体sp值
+    //最大字体sp值,如果values下dimens存在且不为空则忽略该值
     private int maxSp = 120
-    //最大dp值
-    private int maxDp = 640
-    //最大dp负值
+    //最大dp值，如果values下dimens存在且不为空则忽略该值
+    private int maxDp = 720
+    //最大dp负值，如果values下dimens存在且不为空则忽略该值
     private int maxNegative = 0
     //支持的屏幕分辨率dp
-    private def supportStr = [360, 540, 720, 1080] as int[]
+    private def supportStr = [540, 720, 1080] as int[]
+    //dp值模板
+    private String WTemplate1 = "<dimen name=\"{0}\">{1}</dimen>"
     //dp值模板
     private String WTemplate = "<dimen name=\"dp_{0}\">{1}dp</dimen>"
     //负值dp模板
@@ -25,8 +32,74 @@ class SDPFactory extends DefaultTask {
     //sp值模板
     private String TextTemplate = "<dimen name=\"sp_{0}\">{1}sp</dimen>"
 
+    def readBaseDimens() {
+        //获取当前目录的绝对路径
+        def p = project.file('dimens.gradle').absolutePath
+        def projectDir = p.substring(0, p.indexOf("dimens.gradle"))
+        println(">>>>" + projectDir)
+        //获取当前目录的绝对路径
+        String resFolderPath = new File(projectDir + "src/main/res/").getAbsolutePath()
+        //获取基准的dimens.xml文件
+        String baseDimenFilePath = resFolderPath + File.separator + "values" + File.separator + "dimens.xml"
+        println(">>>>" + baseDimenFilePath)
+        File testBaseDimenFile = new File(baseDimenFilePath)
+        //判断基准文件是否存在
+        if (!testBaseDimenFile.exists()) {
+            println("DK WARNING:  \"./res/values/dimens.xml\" 路径下的文件找不到!")
+            return false
+        }
+        //解析源dimens.xml文件
+        ArrayList<DimenItem> list = readDimenFile(baseDimenFilePath)
+        if (list == null || list.size() <= 0) {
+            println("DK WARNING:  \"./res/values/dimens.xml\" 文件无数据!");
+            return false
+        } else {
+            println("OK \"./res/values/dimens.xml\" 基准dimens文件解析成功!");
+        }
+        try {
+            //循环指定的dp参数，生成对应的dimens-swXXXdp.xml文件
+            for (int val : supportStr) {
+                generateXmlFile(val, list)
+            }
+            println("OK ALL OVER，全部生成完毕！");
+            return true
+        } catch (Exception e) {
+            e.printStackTrace()
+            return false;
+        }
+    }
+
+    def readDimenFile(String path) {
+        def results = new XmlParser().parse(path)
+        def list = new ArrayList<DimenItem>()
+        results.children().each {
+            println(">>>>" + it)
+            if (it.name() == "dimen") {
+                def name = it.@name
+                def value = it.text()
+                if (name == null || "" == name.trim()
+                        || value == null || "" == value.trim()) {
+                    //无效值，不执行计算
+                    return
+                }
+                if (value.startsWith("@dimen/")) {
+                    //引用值，不执行计算
+                    return
+                }
+                def item = new DimenItem()
+                item.name = name
+                item.value = value
+                list.add(item)
+            }
+        }
+        return list
+    }
+
     @TaskAction
     def generateXmlFile() {
+        if (readBaseDimens()) {
+            return
+        }
         for (int val : supportStr) {
             generateXmlFile(val)
         }
@@ -70,8 +143,106 @@ class SDPFactory extends DefaultTask {
         printWriter.close()
     }
 
+    def generateXmlFile(float w, ArrayList<DimenItem> list) {
+        println("list:" + list)
+        //创建目录
+        String resFolder = project.getProjectDir().getPath() + "/src/main/res/"
+        String folder = resFolder + "values-sw" + (int) w + "dp"
+        File fileDir = new File(folder)
+        if (!fileDir.exists()) {
+            fileDir.mkdir()
+        }
+
+        //创建文件
+        String fileName = folder + "/dimens.xml"
+        File file = new File(fileName)
+        file.createNewFile()
+
+        PrintWriter printWriter = new PrintWriter(fileName)
+        printWriter.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+        printWriter.println("<resources>")
+        println("WTemplate:" + WTemplate1)
+        float cellw = w * 2f / designW// 2表示屏幕密度xhdpi 120*2/1440
+        for (final def item in list) {
+            def value = item.value
+            def dimen = countValue(value, cellw, true)
+            String dpContent = WTemplate1.replace("{0}", item.name).replace("{1}", dimen + "")
+            printWriter.println(dpContent)
+        }
+        printWriter.println("</resources>")
+        printWriter.close()
+    }
+
+    static def countValue(String sourceValue, double multiple, boolean isFontMatch) {
+        println("sourceValue:" + sourceValue)
+        if (sourceValue == null || "".equals(sourceValue.trim())) {
+            //无效值，不执行计算
+            return "errorValue";
+        }
+        //去除值两端空格，包括引用值
+        sourceValue = sourceValue.trim();
+        // @dimen/dp_xxx
+        // @dimen/sp_xxx
+        if (sourceValue.startsWith("@dimen/")) {
+            //引用值，不执行计算
+            return sourceValue;
+        }
+        //替换非引用值的单位dip为dp
+        if (sourceValue.endsWith("dip")) {
+            //我只确保最后的dip替换成dp，你非要写成39dipdip这种恶心的值，我也管不了
+            sourceValue = sourceValue.replaceAll("dip", "dp")
+        }
+        if (!sourceValue.endsWith("dp") && !sourceValue.endsWith("sp")) {
+            //非dp或sp数据，不执行计算
+            return sourceValue;
+        }
+        if (sourceValue.endsWith("sp")) {
+            if (!isFontMatch) {
+                //如果为false，不执行计算
+                return sourceValue
+            }
+        }
+        if (sourceValue.length() < 3) {
+            //只剩下单位dp或sp，不执行计算
+            return sourceValue;
+        }
+        int length = sourceValue.length();
+        String endValue = sourceValue.substring(length - 2, length);//单位dp或sp
+        String startValue = sourceValue.substring(0, length - 2);//数值
+        endValue = endValue.trim();
+        startValue = startValue.trim();
+        if ("".equals(endValue) || "".equals(startValue)) {
+            return sourceValue;
+        }
+        //乘以系数
+        double temp = 0;
+        try {
+            temp = Double.parseDouble(startValue) * multiple;
+        } catch (Exception e) {
+            return sourceValue;
+        }
+        //数据格式化对象
+        DecimalFormat df = new DecimalFormat("0.00")
+        return df.format(temp) + endValue;
+    }
+
     static def change(a) {
         float temp = (int) (a * 100)
         return temp / 100f
+    }
+    /**
+     * @Author: duke
+     * @DateTime: 2016-08-24 17:32
+     * @UpdateTime: 2017-09-29 09:55
+     * @Description: dimens文件中的dimen数据项
+     */
+    public class DimenItem {
+        public String name;
+        public String value;
+
+        @Override
+        String toString() {
+            return "[" + name + ":" + value + "]";
+        }
     }
 }
