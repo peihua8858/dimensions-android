@@ -1,6 +1,5 @@
 import java.text.DecimalFormat
 import groovy.xml.*
-
 task('SDPFactory', type: SDPFactory) {
     println "SDPFactory"
 }
@@ -15,14 +14,16 @@ task("creatteDimens", dependsOn: [
 class SDPFactory extends DefaultTask {
     //设计图宽度尺寸px
     private double designW = 1080
+    //设计图dp的缩放比例
+    private double scale = 3
     //最大字体sp值,如果values下dimens存在且不为空则忽略该值
-    private int maxSp = 120
+    private int maxSp = 80
     //最大dp值，如果values下dimens存在且不为空则忽略该值
     private int maxDp = 720
     //最大dp负值，如果values下dimens存在且不为空则忽略该值
     private int maxNegative = 0
     //支持的屏幕分辨率dp
-    private def supportStr = [540, 720, 1080] as int[]
+    private def supportStr = [160,240,360,420,480,540,640,680,720,960,1080,1280,1440] as int[]
     //dp值模板
     private String WTemplate1 = "<dimen name=\"{0}\">{1}</dimen>"
     //dp值模板
@@ -123,7 +124,7 @@ class SDPFactory extends DefaultTask {
         printWriter.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         printWriter.println("<resources>")
 
-        float cellw = w * 2f / designW// 2表示屏幕密度xhdpi 120*2/1440
+        float cellw = w * scale / designW// 2表示屏幕密度xhdpi 120*2/1440
         int i = 1
         for (; i <= designW; i++) {
             if (i <= maxDp) {
@@ -162,7 +163,7 @@ class SDPFactory extends DefaultTask {
         printWriter.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         printWriter.println("<resources>")
         println("WTemplate:" + WTemplate1)
-        float cellw = w * 2f / designW// 2表示屏幕密度xhdpi 120*2/1440
+        float cellw = w * scale / designW// 2表示屏幕密度xhdpi 120*2/1440
         for (final def item in list) {
             def value = item.value
             def dimen = countValue(value, cellw, true)
