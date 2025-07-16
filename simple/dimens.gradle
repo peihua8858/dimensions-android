@@ -23,7 +23,7 @@ class SDPFactory extends DefaultTask {
     //最大dp负值，如果values下dimens存在且不为空则忽略该值
     private int maxNegative = 0
     //支持的屏幕分辨率dp
-    private def supportStr = [160,240,360,420,480,540,640,680,720,960,1080,1280,1440] as int[]
+    private def supportStr = [160,240,320,360,376,400,420,480,540,640,680,720,960,1080,1280,1440] as int[]
     //dp值模板
     private String WTemplate1 = "<dimen name=\"{0}\">{1}</dimen>"
     //dp值模板
