@@ -1,5 +1,6 @@
 import java.text.DecimalFormat
 import groovy.xml.*
+
 task('SDPFactory', type: SDPFactory) {
     println "SDPFactory"
 }
@@ -23,7 +24,7 @@ class SDPFactory extends DefaultTask {
     //最大dp负值，如果values下dimens存在且不为空则忽略该值
     private int maxNegative = 0
     //支持的屏幕分辨率dp
-    private def supportStr = [160,240,320,360,376,400,420,480,540,640,680,720,960,1080,1280,1440] as int[]
+    private def supportStr = [160, 240, 320, 360, 376, 400, 420, 480, 540, 640, 680, 720, 960, 1080, 1280, 1440] as int[]
     //dp值模板
     private String WTemplate1 = "<dimen name=\"{0}\">{1}</dimen>"
     //dp值模板
@@ -47,6 +48,12 @@ class SDPFactory extends DefaultTask {
         //判断基准文件是否存在
         if (!testBaseDimenFile.exists()) {
             println("DK WARNING:  \"./res/values/dimens.xml\" 路径下的文件找不到!")
+            baseDimenFilePath = resFolderPath + File.separator + "values" + File.separator + "dimen.xml"
+            println(">>>>" + baseDimenFilePath)
+            testBaseDimenFile = new File(baseDimenFilePath)
+        }
+        if (!testBaseDimenFile.exists()) {
+            println("DK WARNING:  \"./res/values/dimen.xml\" 路径下的文件找不到!")
             return false
         }
         //解析源dimens.xml文件
@@ -60,7 +67,7 @@ class SDPFactory extends DefaultTask {
         try {
             //循环指定的dp参数，生成对应的dimens-swXXXdp.xml文件
             for (int val : supportStr) {
-                generateXmlFile(val, list)
+                generateXmlFile(val, list, testBaseDimenFile.name)
             }
             println("OK ALL OVER，全部生成完毕！");
             return true
@@ -144,7 +151,7 @@ class SDPFactory extends DefaultTask {
         printWriter.close()
     }
 
-    def generateXmlFile(float w, ArrayList<DimenItem> list) {
+    def generateXmlFile(float w, ArrayList<DimenItem> list, String fileName) {
         println("list:" + list)
         //创建目录
         String resFolder = project.getProjectDir().getPath() + "/src/main/res/"
@@ -155,7 +162,10 @@ class SDPFactory extends DefaultTask {
         }
 
         //创建文件
-        String fileName = folder + "/dimens.xml"
+        if (fileName.isEmpty()) {
+            fileName = "dimens.xml"
+        }
+        fileName = folder + "/" + fileName
         File file = new File(fileName)
         file.createNewFile()
 
